@@ -1,3 +1,4 @@
+// Importing required libraries, icons, Firebase methods, animations
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, AlertCircle, CheckCircle, Github, Facebook, Mail, Lock, User } from 'lucide-react';
@@ -15,96 +16,144 @@ import gsap from 'gsap';
 import Lottie from 'lottie-react';
 
 const AuthForm = () => {
-    const [mode, setMode] = useState('login'); // 'login' or 'register'
+
+    // mode → determines if user is on login or register screen
+    const [mode, setMode] = useState('login');
+
+    // All form input fields stored in state
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
         confirmPassword: ''
     });
+
+    // Toggles password visibility (eye icon)
     const [showPassword, setShowPassword] = useState(false);
+
+    // Loading state for button
     const [loading, setLoading] = useState(false);
+
+    // General firebase/auth errors
     const [error, setError] = useState('');
+
+    // Success message (used after registration)
     const [successMsg, setSuccessMsg] = useState('');
+
+    // Field-specific validation errors
     const [fieldErrors, setFieldErrors] = useState({});
 
     const navigate = useNavigate();
+
+    // Refs for GSAP animations
     const formRef = useRef(null);
     const imageRef = useRef(null);
 
-    // Abstract animation JSON URL
-    // Note: If this URL fails, replace it with another valid Lottie JSON URL.
+    // Lottie animation JSON file URL
     const animationUrl = "https://assets2.lottiefiles.com/packages/lf20_w51pcehl.json";
     const [animationData, setAnimationData] = useState(null);
 
+    // Load animation + run slide animations
     useEffect(() => {
-        // Fetch Lottie animation data
+
+        // Fetch the animation JSON
         fetch(animationUrl)
             .then(res => res.json())
             .then(data => setAnimationData(data))
             .catch(err => console.error("Failed to load animation:", err));
 
-        // Entry Animation
+        // Animate left form sliding in
         gsap.fromTo(formRef.current,
             { opacity: 0, x: -50 },
             { opacity: 1, x: 0, duration: 1, ease: "power3.out" }
         );
+
+        // Animate right section sliding in
         gsap.fromTo(imageRef.current,
             { opacity: 0, x: 50 },
             { opacity: 1, x: 0, duration: 1, ease: "power3.out", delay: 0.2 }
         );
-    }, [mode]);
 
+    }, [mode]); // re-run when login/register changes
+
+    // Validation logic for both login & register
     const validate = () => {
         const newErrors = {};
+
+        // Only required during registration
         if (mode === 'register') {
             if (!formData.name.trim()) newErrors.name = 'Name is required';
             if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
         }
+
+        // Email validation
         if (!formData.email.trim()) newErrors.email = 'Email is required';
         else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
 
+        // Password validation
         if (!formData.password) newErrors.password = 'Password is required';
         else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
 
         setFieldErrors(newErrors);
+
+        // Return true if no errors exist
         return Object.keys(newErrors).length === 0;
     };
 
+    // Handle input change & clear field-specific error
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+
+        // Remove validation error on typing
         if (fieldErrors[e.target.name]) {
             setFieldErrors({ ...fieldErrors, [e.target.name]: '' });
         }
     };
 
+    // Submit handler for login or register
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setSuccessMsg('');
 
-        if (!validate()) return;
+        if (!validate()) return; // stop if validation fails
 
         setLoading(true);
+
         try {
             if (mode === 'register') {
+                // Create new user with Firebase
                 const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+
+                // Add name to user's Firebase profile
                 await updateProfile(userCredential.user, { displayName: formData.name });
+
+                // Show success message
                 setSuccessMsg('Registration successful! Please log in.');
+
+                // Switch to login mode
                 setMode('login');
-                setFormData(prev => ({ ...prev, password: '', confirmPassword: '' })); // Keep email
+
+                // Only clear passwords, keep email
+                setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
             } else {
+                // Login existing user
                 await signInWithEmailAndPassword(auth, formData.email, formData.password);
+
+                // Navigate to home after login
                 navigate('/home');
             }
         } catch (err) {
             console.error(err);
+
+            // Clean Firebase error message
             setError(err.message.replace('Firebase: ', ''));
         } finally {
             setLoading(false);
         }
     };
 
+    // Handle Google / GitHub / Facebook login popup
     const handleSocialLogin = async (provider) => {
         setError('');
         setLoading(true);
@@ -119,6 +168,7 @@ const AuthForm = () => {
         }
     };
 
+    // Switch between login and register mode
     const toggleMode = () => {
         setMode(mode === 'login' ? 'register' : 'login');
         setError('');
@@ -128,9 +178,12 @@ const AuthForm = () => {
 
     return (
         <div className="h-screen w-screen overflow-hidden flex bg-gray-50 font-sans">
-            {/* Form Section */}
+
+            {/* ---------------- LEFT FORM PANEL ---------------- */}
             <div ref={formRef} className="w-full md:w-1/2 h-full flex flex-col justify-center p-6 md:p-12 overflow-hidden bg-white relative z-10">
                 <div className="max-w-md mx-auto w-full">
+
+                    {/* Title + subtitle */}
                     <div className="mb-6 text-center md:text-left">
                         <h2 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">
                             {mode === 'login' ? 'Welcome Back' : 'Create Account'}
@@ -142,6 +195,7 @@ const AuthForm = () => {
                         </p>
                     </div>
 
+                    {/* Error message box */}
                     {error && (
                         <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2 animate-pulse">
                             <AlertCircle className="text-red-500 shrink-0" size={18} />
@@ -149,6 +203,7 @@ const AuthForm = () => {
                         </div>
                     )}
 
+                    {/* Success message box */}
                     {successMsg && (
                         <div className="mb-4 p-3 bg-green-50 border border-green-100 rounded-xl flex items-start gap-2">
                             <CheckCircle className="text-green-500 shrink-0" size={18} />
@@ -156,7 +211,10 @@ const AuthForm = () => {
                         </div>
                     )}
 
+                    {/* Main form */}
                     <form onSubmit={handleSubmit} className="space-y-4">
+
+                        {/* Full Name (only register mode) */}
                         {mode === 'register' && (
                             <div className="relative group">
                                 <label className="block text-xs font-semibold text-gray-700 mb-1 ml-1">Full Name</label>
@@ -175,6 +233,7 @@ const AuthForm = () => {
                             </div>
                         )}
 
+                        {/* Email field */}
                         <div className="relative group">
                             <label className="block text-xs font-semibold text-gray-700 mb-1 ml-1">Email Address</label>
                             <div className="relative">
@@ -191,6 +250,7 @@ const AuthForm = () => {
                             {fieldErrors.email && <p className="text-xs text-red-500 mt-1 ml-1 font-medium">{fieldErrors.email}</p>}
                         </div>
 
+                        {/* Password field */}
                         <div className="relative group">
                             <label className="block text-xs font-semibold text-gray-700 mb-1 ml-1">Password</label>
                             <div className="relative">
@@ -203,6 +263,8 @@ const AuthForm = () => {
                                     className={`w-full pl-10 pr-10 py-3 rounded-xl border-2 ${fieldErrors.password ? 'border-red-500 bg-red-50' : 'border-gray-100 bg-gray-50'} focus:border-blue-600 focus:bg-white outline-none transition-all duration-300 font-medium text-sm`}
                                     placeholder="••••••••"
                                 />
+
+                                {/* Toggle password visible */}
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
@@ -214,6 +276,7 @@ const AuthForm = () => {
                             {fieldErrors.password && <p className="text-xs text-red-500 mt-1 ml-1 font-medium">{fieldErrors.password}</p>}
                         </div>
 
+                        {/* Confirm password (only register mode) */}
                         {mode === 'register' && (
                             <div className="relative group">
                                 <label className="block text-xs font-semibold text-gray-700 mb-1 ml-1">Confirm Password</label>
@@ -232,6 +295,7 @@ const AuthForm = () => {
                             </div>
                         )}
 
+                        {/* Submit button */}
                         <button
                             type="submit"
                             disabled={loading}
@@ -241,6 +305,7 @@ const AuthForm = () => {
                         </button>
                     </form>
 
+                    {/* Social login separator */}
                     <div className="mt-6">
                         <div className="relative">
                             <div className="absolute inset-0 flex items-center">
@@ -251,7 +316,9 @@ const AuthForm = () => {
                             </div>
                         </div>
 
+                        {/* Social login buttons */}
                         <div className="mt-6 grid grid-cols-3 gap-3">
+                            {/* Google */}
                             <button
                                 onClick={() => handleSocialLogin(googleProvider)}
                                 disabled={loading}
@@ -260,6 +327,7 @@ const AuthForm = () => {
                                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5 group-hover:scale-110 transition-transform" />
                             </button>
 
+                            {/* GitHub */}
                             <button
                                 onClick={() => handleSocialLogin(githubProvider)}
                                 disabled={loading}
@@ -268,6 +336,7 @@ const AuthForm = () => {
                                 <Github size={20} className="text-gray-900 group-hover:scale-110 transition-transform" />
                             </button>
 
+                            {/* Facebook */}
                             <button
                                 onClick={() => handleSocialLogin(facebookProvider)}
                                 disabled={loading}
@@ -278,6 +347,7 @@ const AuthForm = () => {
                         </div>
                     </div>
 
+                    {/* Switch login/register link */}
                     <p className="mt-6 text-center text-sm text-gray-600">
                         {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
                         <button
@@ -290,15 +360,18 @@ const AuthForm = () => {
                 </div>
             </div>
 
-            {/* Visual Section */}
+            {/* ---------------- RIGHT ANIMATION PANEL ---------------- */}
             <div ref={imageRef} className="hidden md:block w-1/2 h-full relative overflow-hidden bg-gray-900">
+
+                {/* Background gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-gray-900 to-black opacity-90"></div>
 
-                {/* Lottie Animation */}
+                {/* Lottie animation */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-60">
                     {animationData && <Lottie animationData={animationData} loop={true} className="w-full h-full object-cover" />}
                 </div>
 
+                {/* Overlay text */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-12 text-center z-10">
                     <div className="backdrop-blur-sm bg-white/10 p-8 rounded-3xl border border-white/10 shadow-2xl max-w-lg">
                         <h3 className="text-4xl font-bold mb-4 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">
@@ -311,9 +384,10 @@ const AuthForm = () => {
                         </p>
                     </div>
                 </div>
+
             </div>
         </div>
     );
 };
 
-export default AuthForm;
+export default AuthForm; 
